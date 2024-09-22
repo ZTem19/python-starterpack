@@ -4,10 +4,10 @@ from game.base_strategy import BaseStrategy
 from game.plane import Plane, PlaneType
 from game.plane_data import Vector
 import math
-import json
 # The following is the heart of your bot. This controls what your bot does.
 # Feel free to change the behavior to your heart's content.
 # You can also add other files under the strategy/ folder and import them
+
 
 speeds = {
     PlaneType.STANDARD : 2,
@@ -25,20 +25,16 @@ turningRadius = {
     PlaneType.PIGEON: 30,
 }
 
-
 def clearLog(filepath: str):
     f = open(filepath, 'w')
+    f.flush()
     f.close()
 
 
-def printdict(dict: dict ,filepath: str):
+def print(text: str,filepath: str):
     f = open(filepath, 'a')
-    for key, value in dict.items():
-        f.write( '%s:%s\n' % (key, value))
-
-def print(text: str, filepath: str):
-    f = open(filepath, 'a')
-    f.write(text + "\n")
+    f.write(text)
+    f.close()
 
 def distance(o1, o):
     return ((o1.x - o.x) ** 2 + (o1.y - o.y) ** 2) ** .5
@@ -51,8 +47,8 @@ def getNextPos(plane):
     currentAngle = plane.angle
     speed = speeds[plane.type]
     differenceVector = Vector(0,0)
-    differenceVector.x = speed * math.sin(currentAngle)
-    differenceVector.y = speed * math.cos(currentAngle)
+    differenceVector.x = speed * math.cos(currentAngle)
+    differenceVector.y = speed * math.sin(currentAngle)
     return planePosition.__add__(differenceVector)
 
 def getAngleToPos(plane, position: Vector):
@@ -66,11 +62,21 @@ def getAngleToPos(plane, position: Vector):
 def clamp(bot, top, value):
     if value < bot:
         return bot
-    elif value > top:
-        return top
-    else:
-        return value
 
+    if value > top:
+        return top
+    
+    return value
+
+def planes_facing_each_other(angle, enemy_angle):
+    if 160 <= abs(angle - enemy_angle) <= 200:
+        return True
+    
+def set_fleeing_amngle(angle, enemy_angle):
+    fleeing_angle = enemy_angle + 180
+    if fleeing_angle >= 360: fleeing_angle -= 360
+    angle_to_travel = angle - fleeing_angle
+    return angle_to_travel
 
 class Strategy(BaseStrategy):
     # BaseStrategy provides self.team, so you use self.team to see what team you are on
@@ -78,6 +84,7 @@ class Strategy(BaseStrategy):
 
     fileLogPath = "log.txt"
     my_counter = 0
+    global_positions = dict()
     
     def select_planes(self) -> dict[PlaneType, int]:
         # Select which planes you want, and what number
@@ -90,13 +97,18 @@ class Strategy(BaseStrategy):
         }
     
     def steer_input(self, planes: dict[str, Plane]) -> dict[str, float]:
+        
+        for id, plane in planes.items():
+            if self.my_counter == 0:
+                self.global_positions[id] = []
+            self.global_positions[id].append(plane.position)
+
         # Define a dictionary to hold our response
         response = dict()
         enemies = dict()
         myplanes = dict()
 
-
-        #Sort planes
+        # #Sort planes
         for id, plane in planes.items():
             # id is the unique id of the plane, plane is a Plane object
             # We can only control our own planes
@@ -109,44 +121,37 @@ class Strategy(BaseStrategy):
 
         for id, plane in myplanes.items():
             shortest = None
-            currentDistance = 100000000000
-
-            for enemyid, enemyPlane in enemies.items():
+            currentDistance = 0
+            for id, planeE in enemies.items():
                 #Find closet enemy
-                if distance(plane.position, enemyPlane.position) < currentDistance:
-                    shortest = enemyPlane
+                if distance(plane.position, planeE.position) < currentDistance:
+                    shortest = planeE
 
             if self.my_counter < 5:
-                response[id] = (random.random() * 2) - 1
+                response[id] = random.randrange(2) - 1
+
+            if plane is None or shortest is None:
                 continue
 
-            if dot(plane.position, shortest.position) > 0 or currentDistance < 10: #Evade
-                targetPos = getNextPos(shortest)
-                targetPos = -targetPos.x, -targetPos.y
-                angle = getAngleToPos(plane, targetPos)
-                if (abs(angle) < 0.01):
-                    response[id] = 0  # prevent division by 0
-                    continue
-                steer = turningRadius[plane.type] / angle
+            if planes_facing_each_other(plane.angle, shortest.angle): #Evade
+                angle = set_fleeing_amngle(plane.angle, shortest.angle)
+                steer = angle / turningRadius[plane.type]
                 response[id] = clamp(-1, 1, steer)
             else: #Attack
                 #Get enemy planes next approximate position
-
-                targetPos = getNextPos(shortest)
-                angle = getAngleToPos(plane, targetPos)
+                targetPos = getNextPos(planeE)
+                angle = getAngleToPos(plane, planeE.position)
                 if (abs(angle) < 0.01):
                     response[id] = 0  #prevent division by 0
                     continue
-                steer = turningRadius[plane.type]/angle
-                response[id] = clamp(-1, 1, steer)
+                steer = angle / turningRadius()
+                response[id] = clamp(-1, 1 , steer)
 
         # Increment counter to keep track of what turn we're on
         self.my_counter += 1
 
         # Return the steers
-        printdict(response, self.fileLogPath)
-        print(str(self.my_counter), self.fileLogPath)
-
+        #print(self.fileLogPath, response.values())
         return response
 
 
