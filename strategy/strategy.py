@@ -109,15 +109,6 @@ def planes_facing_each_other(angle, enemy_angle):
     if (180 - cone_width / 2) <= abs(angle - enemy_angle) <= (180 + cone_width / 2):
         return True
 
-    return False
-
-
-def set_fleeing_angle(angle, enemy_angle):
-    fleeing_angle = enemy_angle + 180
-    if fleeing_angle >= 360: fleeing_angle -= 360
-    angle_to_travel = angle - fleeing_angle
-    return angle_to_travel
-
 
 def in_bounds(minimum, maximum, value):
     if minimum < value < maximum:
