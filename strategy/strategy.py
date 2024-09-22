@@ -19,13 +19,13 @@ turningRadius = {
     PlaneType.PIGEON: 30
 }
 
-
 def clearLog(filepath: str):
     f = open(filepath, 'w')
+    f.flush()
     f.close()
 
 
-def printdict(dict: dict ,filepath: str):
+def print(text: str,filepath: str):
     f = open(filepath, 'a')
     for key, value in dict.items():
         f.write( '%s:%s\n' % (key, value))
@@ -82,11 +82,21 @@ def validate_final(angle):
 def clamp(bot, top, value):
     if value < bot:
         return bot
-    elif value > top:
-        return top
-    else:
-        return value
 
+    if value > top:
+        return top
+    
+    return value
+
+def planes_facing_each_other(angle, enemy_angle):
+    if 160 <= abs(angle - enemy_angle) <= 200:
+        return True
+    
+def set_fleeing_amngle(angle, enemy_angle):
+    fleeing_angle = enemy_angle + 180
+    if fleeing_angle >= 360: fleeing_angle -= 360
+    angle_to_travel = angle - fleeing_angle
+    return angle_to_travel
 
 class Strategy(BaseStrategy):
     # BaseStrategy provides self.team, so you use self.team to see what team you are on
@@ -94,6 +104,7 @@ class Strategy(BaseStrategy):
 
     fileLogPath = "log.txt"
     my_counter = 0
+    global_positions = dict()
     
     def select_planes(self) -> dict[PlaneType, int]:
         # Select which planes you want, and what number
@@ -106,13 +117,18 @@ class Strategy(BaseStrategy):
         }
     
     def steer_input(self, planes: dict[str, Plane]) -> dict[str, float]:
+        
+        for id, plane in planes.items():
+            if self.my_counter == 0:
+                self.global_positions[id] = []
+            self.global_positions[id].append(plane.position)
+
         # Define a dictionary to hold our response
         response = dict()
         enemies = dict()
         myplanes = dict()
 
-
-        #Sort planes
+        # #Sort planes
         for id, plane in planes.items():
             # id is the unique id of the plane, plane is a Plane object
             # We can only control our own planes
