@@ -27,10 +27,11 @@ planeSpeed = {
 }
 
 
-def print_dict(text: str, filepath: str):
+def print_dict(dictionary: dict, filepath: str):
     f = open(filepath, 'a')
-    for key, value in dict.items():
-        f.write( '%s:%s\n' % (key, value))
+    # noinspection PyArgumentList
+    for key, value in dictionary.items():
+        f.write('%s:%s\n' % (key, value))
 
 
 def printf(text: str, filepath: str):
@@ -38,8 +39,8 @@ def printf(text: str, filepath: str):
     f.write(text)
 
 
-def distance(o1, o):
-    return ((o1.x - o.x) ** 2 + (o1.y - o.y) ** 2) ** .5
+def distance(o: Vector, o1: Vector):
+    return ((o.x - o1.x) ** 2 + (o.y - o1.y) ** 2) ** .5
 
 
 def dot(o1, o):
@@ -50,7 +51,7 @@ def get_next_pos(plane):
     plane_position = plane.position
     current_angle = plane.angle
     speed = plane.stats.speed
-    difference_vector = Vector(0,0)
+    difference_vector = Vector(0, 0)
     difference_vector.y = speed * math.sin(current_angle)
     difference_vector.x = speed * math.cos(current_angle)
     return Vector(plane_position.x + difference_vector.x, plane_position.y + difference_vector.y)
@@ -60,7 +61,7 @@ def get_last_pos(plane):
     plane_position = plane.position
     current_angle = plane.angle
     speed = plane.stats.speed * 2
-    difference_vector = Vector(0,0)
+    difference_vector = Vector(0, 0)
     difference_vector.y = speed * math.sin(current_angle)
     difference_vector.x = speed * math.cos(current_angle)
     return Vector(plane_position.x - difference_vector.x, plane_position.y - difference_vector.y)
@@ -71,13 +72,10 @@ def get_angle_to_pos(plane: Plane, target_position: Vector):
     plane_pos = plane.position
     dx = target_position.x - plane_pos.x
     dy = target_position.y - plane_pos.y
-    global_angle = math.degrees(math.atan2( dy, dx ) )
+    global_angle = math.degrees(math.atan2(dy, dx))
 
     if global_angle < 0:
         global_angle += 360
-
-    printf("Global Angle: " + str(global_angle), "log.txt")
-    printf("Plane Angle: " + str(plane.angle), "log.txt")
 
     angle = plane.angle - global_angle
     return angle
@@ -89,7 +87,7 @@ def validate_final(angle):
     elif angle < -180:
         angle += 360
 
-    printf("Final angle: " + str(angle), "log.txt")
+    #printf("Final angle: " + str(angle), "log.txt")
 
     return angle
 
@@ -117,6 +115,27 @@ def in_bounds(minimum, maximum, value):
     return False
 
 
+def determine_best_move(plane, enemy_pos, current_distance, angle):
+    next_distance = distance(plane.position, enemy_pos)
+    target_angle = get_angle_to_pos(plane, enemy_pos)
+
+    printf(str(current_distance - next_distance) + '\n', "log.txt")
+
+    if (current_distance - next_distance) > 1.5 and current_distance < 20:
+        if planes_facing_each_other(plane.angle, angle):
+            if target_angle > 0:
+                target_angle -= 110
+            else:
+                target_angle += 110
+        else:
+            if target_angle > 0:
+                target_angle -= 180
+            else:
+                target_angle += 180
+
+    return target_angle
+
+
 class Strategy(BaseStrategy):
     # BaseStrategy provides self.team, so you use self.team to see what team you are on
     # You can define whatever variables you want here
@@ -128,11 +147,11 @@ class Strategy(BaseStrategy):
     def select_planes(self) -> dict[PlaneType, int]:
         # Select which planes you want, and what number
         return {
-            PlaneType.STANDARD: 5,
+            PlaneType.STANDARD: 2,
             PlaneType.FLYING_FORTRESS: 0,
-            PlaneType.THUNDERBIRD: 0,
-            PlaneType.SCRAPYARD_RESCUE: 0,
-            PlaneType.PIGEON: 0,
+            PlaneType.THUNDERBIRD: 2,
+            PlaneType.SCRAPYARD_RESCUE: 1,
+            PlaneType.PIGEON: 10,
         }
     
     def steer_input(self, planes: dict[str, Plane]) -> dict[str, float]:
@@ -160,50 +179,47 @@ class Strategy(BaseStrategy):
 
         for id, plane in my_planes.items():
 
-            # Switch targeting method based on team
-            get_pos = None
-            if plane.position.x < 0:
-                get_pos = get_last_pos
-            else:
-                get_pos = get_next_pos
-
             closest = None
-            current_distance = 100000000000
+            current_distance = 0
             shortest_distance = 100000000000
+            average_distance = 0
+            search_radius = 5
+
+            enemies_in_area = []
 
             for enemy_id, enemy_plane in enemies.items():
-                # Find closet enemy
                 current_distance = distance(plane.position, enemy_plane.position)
+
+                # Find next enemy
                 if current_distance < shortest_distance:
-                    closest = enemy_plane
                     shortest_distance = current_distance
+                    closest = enemy_plane
+                    if current_distance < search_radius:
+                        average_distance += current_distance
+                        enemies_in_area.append(enemy_plane)
 
-            enemy_next_pos = get_next_pos(closest)
-            targe_angle = get_angle_to_pos(plane, enemy_next_pos)
+            target_angle = float
+            next_distance = float
+            average_enemy_next_pos = Vector(0, 0)
+            if len(enemies_in_area) != 0:
+                total_vector = Vector(0, 0)
+                for enemy_plane in enemies_in_area:
+                    total_vector + get_next_pos(enemy_plane)
 
-            # Decide attacking or evading
-            # If enemy is close and getting closer
-            if abs(distance(plane.position, enemy_next_pos) - shortest_distance) > 1 and shortest_distance < 15:
-                if planes_facing_each_other(plane.angle, closest.angle):
-                    if targe_angle > 0:
-                        targe_angle -= 110
-                    else:
-                        targe_angle += 110
-                else:
-                    if targe_angle > 0:
-                        targe_angle -= 180
-                    else:
-                        targe_angle += 180
+                average_enemy_next_pos.x = total_vector.x / len(enemies_in_area)
+                average_enemy_next_pos.x = total_vector.y / len(enemies_in_area)
+                average_distance /= len(enemies_in_area)
+
+                target_angle = determine_best_move(plane, average_enemy_next_pos, average_distance, closest.angle)
             else:
-                # Attack
-                enemy_next_pos = get_pos(closest)
-                targe_angle = get_angle_to_pos(plane, enemy_next_pos)
+                target_angle = determine_best_move(plane, get_next_pos(closest), shortest_distance, closest.angle)
 
+            #printf(str(target_angle), self.fileLogPath)
             # Validate angle
-            if abs(targe_angle) < .001:
+            if abs(target_angle) < .001:
                 steer = 0
             else:
-                steer = -validate_final(targe_angle) / turningRadius[plane.type]
+                steer = -validate_final(target_angle) / turningRadius[plane.type]
 
             # Bounds check
             relative_distance = 4.5 * planeSpeed[plane.type]
@@ -248,5 +264,5 @@ class Strategy(BaseStrategy):
         self.my_counter += 1
 
         # Return the steers
-        printf(str(self.my_counter), self.fileLogPath)
+        #printf(str(self.my_counter), self.fileLogPath)
         return response
