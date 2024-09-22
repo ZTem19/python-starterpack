@@ -4,6 +4,7 @@ from game.base_strategy import BaseStrategy
 from game.plane import Plane, PlaneType
 from game.plane_data import Vector
 import math
+import strategy.utils as utils
 
 # The following is the heart of your bot. This controls what your bot does.
 # Feel free to change the behavior to your heart's content.
@@ -50,8 +51,33 @@ def getNextPos(plane):
     differenceVector = Vector(0,0)
     differenceVector.y = speed * math.sin(currentAngle)
     differenceVector.x = speed * math.cos(currentAngle)
-    return planePosition.__add__(differenceVector)
+    return Vector(planePosition.x + differenceVector.x, planePosition.y + differenceVector.y)
 
+def getAngleToPos(plane: Plane, targetPosition: Vector):
+    planePos = plane.position
+    dx = targetPosition.x - planePos.x
+    dy = targetPosition.y - planePos.y
+    globalAngle = math.degrees(math.atan2( dy, dx ) )
+
+    if globalAngle < 0:
+        globalAngle += 360
+
+    print("Global Angle: " + str(globalAngle), "log.txt")
+    print("Plane Angle: " + str(plane.angle), "log.txt")
+
+    angle = plane.angle - globalAngle
+    return angle #returns angle in degrees between -90 and 90
+
+
+def validate_final(angle):
+    if angle > 180:
+        angle -= 360
+    elif angle < -180:
+        angle += 360
+
+    print("Final angle: " + str(angle), "log.txt")
+
+    return angle
 
 def clamp(bot, top, value):
     if value < bot:
@@ -77,11 +103,11 @@ class Strategy(BaseStrategy):
     def select_planes(self) -> dict[PlaneType, int]:
         # Select which planes you want, and what number
         return {
-            #PlaneType.STANDARD: 1,
-            #PlaneType.FLYING_FORTRESS: 1,
-            PlaneType.THUNDERBIRD: 5,
+            #PlaneType.STANDARD: 5,
+            PlaneType.FLYING_FORTRESS: 2,
+            PlaneType.THUNDERBIRD: 1,
             #PlaneType.SCRAPYARD_RESCUE: 1,
-            #PlaneType.PIGEON: 10,
+            PlaneType.PIGEON: 3,
         }
     
     def steer_input(self, planes: dict[str, Plane]) -> dict[str, float]:
@@ -123,11 +149,9 @@ class Strategy(BaseStrategy):
             #     response[id] = (random.random() * 2) - 1
             #     continue
 
-            print(str(shorestDistance), self.fileLogPath)
-
             enemyNextPos = getNextPos(closest)
             targetAngle = getAngleToPos(plane, enemyNextPos)
-            if shorestDistance < 5:
+            if shorestDistance < 20:
                 if distance(plane.position, enemyNextPos) < shorestDistance:   #enemy getting closer
                     if targetAngle > 0:
                         targetAngle -= 180
@@ -137,7 +161,13 @@ class Strategy(BaseStrategy):
             if abs(targetAngle) < .001:
                 steer = 0
             else:
-                steer = targetAngle / turningRadius[plane.type]
+                steer = -validate_final(targetAngle) / turningRadius[plane.type]
+
+
+
+            #print("Distance: " + str(shorestDistance), self.fileLogPath)
+            print("Angle: " + str(targetAngle), self.fileLogPath)
+
 
             response[id] = clamp(-1, 1, steer)
 
