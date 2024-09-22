@@ -10,7 +10,6 @@ import strategy.utils as utils
 # Feel free to change the behavior to your heart's content.
 # You can also add other files under the strategy/ folder and import them
 
-
 turningRadius = {
     PlaneType.STANDARD: 15,
     PlaneType.FLYING_FORTRESS: 10,
@@ -43,13 +42,21 @@ def distance(o1, o):
 def dot(o1, o):
         return o1.x*o.x+o1.y*o.y
 
+def getPrevPos(plane):
+    planePosition = plane.position
+    currentAngle = plane.angle
+    speed = plane.stats.speed
+    differenceVector = Vector(0,0)
+    differenceVector.y = speed * math.sin(currentAngle)
+    differenceVector.x = speed * math.cos(currentAngle)
+    return Vector(planePosition.x - differenceVector.x, planePosition.y - differenceVector.y)
 
 def getNextPos(plane):
     planePosition = plane.position
     currentAngle = plane.angle
     speed = plane.stats.speed
     differenceVector = Vector(0,0)
-    differenceVector.y = speed * math.sin(currentAngle)
+    differenceVector.y = speed * math.sin(currentAngle) 
     differenceVector.x = speed * math.cos(currentAngle)
     return Vector(planePosition.x + differenceVector.x, planePosition.y + differenceVector.y)
 
@@ -66,7 +73,7 @@ def getAngleToPos(plane: Plane, targetPosition: Vector):
     print("Plane Angle: " + str(plane.angle), "log.txt")
 
     angle = plane.angle - globalAngle
-    return angle #returns angle in degrees between -90 and 90
+    return angle
 
 
 def validate_final(angle):
@@ -89,7 +96,7 @@ def clamp(bot, top, value):
     return value
 
 def planes_facing_each_other(angle, enemy_angle):
-    if 160 <= abs(angle - enemy_angle) <= 200:
+    if 140 <= abs(angle - enemy_angle) <= 220:
         return True
 
 class Strategy(BaseStrategy):
@@ -103,10 +110,10 @@ class Strategy(BaseStrategy):
     def select_planes(self) -> dict[PlaneType, int]:
         # Select which planes you want, and what number
         return {
-            #PlaneType.STANDARD: 5,
+            PlaneType.STANDARD: 5,
             PlaneType.FLYING_FORTRESS: 2,
             PlaneType.THUNDERBIRD: 1,
-            #PlaneType.SCRAPYARD_RESCUE: 1,
+            PlaneType.SCRAPYARD_RESCUE: 1,
             PlaneType.PIGEON: 3,
         }
     
@@ -135,6 +142,7 @@ class Strategy(BaseStrategy):
 
         for id, plane in myplanes.items():
             closest = None
+            closestID = None
             currentDistance = 100000000000
             shorestDistance = 100000000000
 
@@ -143,27 +151,33 @@ class Strategy(BaseStrategy):
                 currentDistance = distance(plane.position, enemyPlane.position)
                 if currentDistance < shorestDistance:
                     closest = enemyPlane
+                    closestID = enemyid
                     shorestDistance = currentDistance
 
             # if self.my_counter < 5:
             #     response[id] = (random.random() * 2) - 1
             #     continue
 
-            enemyNextPos = getNextPos(closest)
+            
+            enemyNextPos = getPrevPos(closest)
+            # enemyNextPos = self.global_positions[closestID][self.my_counter - 1]
             targetAngle = getAngleToPos(plane, enemyNextPos)
-            if shorestDistance < 20:
-                if distance(plane.position, enemyNextPos) < shorestDistance:   #enemy getting closer
+            if shorestDistance < 20 and distance(plane.position, enemyNextPos) < shorestDistance:   #enemy getting closer
                     if targetAngle > 0:
-                        targetAngle -= 180
+                        if planes_facing_each_other(plane.angle, closest.angle):
+                            targetAngle -= 90
+                        else:
+                            targetAngle -= 180
                     else:
-                        targetAngle += 180
+                        if planes_facing_each_other(plane.angle, closest.angle):
+                            targetAngle += 90
+                        else:
+                            targetAngle += 180
 
             if abs(targetAngle) < .001:
                 steer = 0
             else:
                 steer = -validate_final(targetAngle) / turningRadius[plane.type]
-
-
 
             #print("Distance: " + str(shorestDistance), self.fileLogPath)
             print("Angle: " + str(targetAngle), self.fileLogPath)
