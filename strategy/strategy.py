@@ -53,14 +53,6 @@ def getNextPos(plane):
     return planePosition.__add__(differenceVector)
 
 
-def getAngleToPos(plane, position: Vector):
-    planePos = plane.position
-    dx = position.x - planePos.x
-    dy = position.y - planePos.y
-    angle = math.degrees(math.atan(dx/dy))
-    return angle #returns angle in degrees between -90 and 90
-
-
 def clamp(bot, top, value):
     if value < bot:
         return bot
@@ -73,12 +65,6 @@ def clamp(bot, top, value):
 def planes_facing_each_other(angle, enemy_angle):
     if 160 <= abs(angle - enemy_angle) <= 200:
         return True
-    
-def set_fleeing_amngle(angle, enemy_angle):
-    fleeing_angle = enemy_angle + 180
-    if fleeing_angle >= 360: fleeing_angle -= 360
-    angle_to_travel = angle - fleeing_angle
-    return angle_to_travel
 
 class Strategy(BaseStrategy):
     # BaseStrategy provides self.team, so you use self.team to see what team you are on
@@ -163,24 +149,4 @@ class Strategy(BaseStrategy):
         print(str(self.my_counter), self.fileLogPath)
 
         return response
-
-        # if dot(plane.position, shortest.position) > 0 or currentDistance < 10: #Evade
-        #     targetPos = getNextPos(shortest)
-        #     targetPos = -targetPos.x, -targetPos.y
-        #     angle = getAngleToPos(plane, targetPos)
-        #     if (abs(angle) < 0.01):
-        #         response[id] = 0  # prevent division by 0
-        #         continue
-        #     steer = turningRadius[plane.type] / angle
-        #     response[id] = clamp(-1, 1, steer)
-        # else: #Attack
-        #     #Get enemy planes next approximate position
-        #
-        #     targetPos = getNextPos(shortest)
-        #     angle = getAngleToPos(plane, targetPos)
-        #     if (abs(angle) < 0.01):
-        #         response[id] = 0  #prevent division by 0
-        #         continue
-        #     steer = turningRadius[plane.type]/angle
-        #     response[id] = clamp(-1, 1, steer)
 
