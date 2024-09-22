@@ -51,7 +51,20 @@ def get_next_pos(plane):
     plane_position = plane.position
     current_angle = plane.angle
     speed = plane.stats.speed
+<<<<<<< HEAD
     difference_vector = Vector(0, 0)
+=======
+    differenceVector = Vector(0,0)
+    differenceVector.y = speed * math.sin(currentAngle)
+    differenceVector.x = speed * math.cos(currentAngle)
+    return Vector(planePosition.x - differenceVector.x, planePosition.y - differenceVector.y)
+
+def get_next_pos(plane):
+    plane_position = plane.position
+    current_angle = plane.angle
+    speed = plane.stats.speed
+    difference_vector = Vector(0,0)
+>>>>>>> ce4bd8a30deaa50389e9942acc71549cb254fae3
     difference_vector.y = speed * math.sin(current_angle)
     difference_vector.x = speed * math.cos(current_angle)
     return Vector(plane_position.x + difference_vector.x, plane_position.y + difference_vector.y)
